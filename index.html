@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS180 Project 4A: Image Warping and Mosaicing</title>
+    <!-- MathJax for LaTeX mathematical rendering -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f17;
+            --surface-color: #121824;
+            --surface-card: #182030;
+            --surface-hover: #1f2b40;
+            --border-color: #27344a;
+            --text-primary: #e6edf3;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+            --accent-green: #4ade80;
+            --accent-amber: #fbbf24;
+            --accent-red: #f87171;
+            --code-bg: #0d131f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.7;
+            padding-bottom: 5rem;
+        }
+
+        /* Sticky Navigation Bar */
+        nav {
+            position: sticky;
+            top: 0;
+            background-color: rgba(18, 24, 36, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.85rem 2rem;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--accent-blue);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.25rem;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-blue);
+        }
+
+        /* Hero Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+            padding: 2.5rem 1rem;
+            background: linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, transparent 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(56, 189, 248, 0.15);
+        }
+
+        header h1 {
+            font-size: 2.6rem;
+            font-weight: 800;
+            margin-bottom: 0.8rem;
+            background: linear-gradient(135deg, #e6edf3 30%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        header p.subtitle {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            max-width: 800px;
+            margin: 0 auto 1.2rem auto;
+        }
+
+        .badge-bar {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-color);
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            font-size: 0.82rem;
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            margin-bottom: 4rem;
+        }
+
+        h2 {
+            font-size: 1.85rem;
+            margin-bottom: 1.25rem;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        h2 span.section-tag {
+            color: var(--accent-blue);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        h3 {
+            font-size: 1.35rem;
+            margin: 1.8rem 0 0.8rem 0;
+            color: var(--accent-blue);
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        strong {
+            color: var(--text-primary);
+        }
+
+        /* Cards and Callouts */
+        .card {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .callout {
+            background-color: rgba(56, 189, 248, 0.05);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1rem 1.25rem;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 1.25rem;
+        }
+
+        .callout.green {
+            background-color: rgba(74, 222, 128, 0.05);
+            border-left-color: var(--accent-green);
+        }
+
+        .callout.purple {
+            background-color: rgba(192, 132, 252, 0.05);
+            border-left-color: var(--accent-purple);
+        }
+
+        /* Media Layouts */
+        .image-box {
+            text-align: center;
+            margin: 1.5rem 0;
+            background: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            padding: 0.75rem;
+        }
+
+        .image-box img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+            transition: transform 0.25s ease;
+        }
+
+        .image-box img:hover {
+            transform: scale(1.015);
+        }
+
+        .caption {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-top: 0.75rem;
+            font-style: italic;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 1.25rem;
+            margin: 1.5rem 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        /* Code & Tables */
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            padding: 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: "Fira Code", Consolas, Monaco, monospace;
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            margin: 1.2rem 0;
+        }
+
+        code {
+            font-family: "Fira Code", Consolas, Monaco, monospace;
+            background-color: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--accent-blue);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--surface-card);
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        footer {
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <a href="#" class="nav-brand">CS180 / CS280A &bull; Proj 4A</a>
+        <ul class="nav-links">
+            <li><a href="#partA">Overview</a></li>
+            <li><a href="#homography">4A.2: Homographies</a></li>
+            <li><a href="#rectification">4A.3: Rectification</a></li>
+            <li><a href="#mosaics">4A.4: Blending &amp; Mosaics</a></li>
+            <li><a href="#bellsA">4A.5: Cylindrical Projection (B&amp;W)</a></li>
+            <li><a href="https://sher913.github.io/cs-180-project-4-B/" style="color: #c084fc; font-weight: 600;">Part 4B Report &rarr;</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="badge-bar" style="margin-bottom: 0.75rem;">
+                <span class="badge">UC Berkeley CS180 / CS280A</span>
+                <span class="badge">Intro to Computer Vision & Computational Photography</span>
+            </div>
+            <h1>Project 4A: Image Warping and Mosaicing</h1>
+            <p class="subtitle">
+                An end-to-end computer vision pipeline from scratch: Projective Homographies, Inverse Warping, Multi-Resolution Distance-Transform Blending, Harris Corners with ANMS, MOPS Feature Descriptors, Lowe Ratio Matching, and Robust 4-Point RANSAC.
+            </p>
+            <div class="badge-bar">
+                <span class="badge" style="color: var(--accent-green);">&check; Zero Prohibited Library Calls</span>
+                <span class="badge" style="color: var(--accent-purple);">&check; Complete Part 4A & 4B</span>
+                <span class="badge" style="color: var(--accent-amber);">&check; Mandatory CS280A Bells & Whistles</span>
+            </div>
+        </header>
+
+        <!-- PART 4A -->
+        <section id="partA">
+            <h2><span class="section-tag">Part 4A</span> Image Warping and Mosaicing</h2>
+            <div class="callout">
+                <strong>Part 4A Goal:</strong> Register multiple photographs into a seamless panoramic mosaic using projective geometry. We implement a least-squares homography solver from scratch, write inverse warping with both Nearest-Neighbor and Bilinear interpolation, perform perspective rectification on angled planar objects, and composite multi-image panoramas with Euclidean distance-transform feathering.
+            </div>
+
+            <!-- A.1 -->
+            <div id="shooting" class="card">
+                <h3>A.1: Shooting the Photographs</h3>
+                <p>
+                    A 2D projective transformation (homography) accurately relates two camera views under two physical regimes:
+                </p>
+                <ol style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-secondary);">
+                    <li>The camera rotates about a strictly stationary <strong>Center of Projection (COP)</strong> with zero translation.</li>
+                    <li>The physical scene being photographed is strictly planar (e.g. wall poster, facade).</li>
+                </ol>
+                <p>
+                    Three distinct multi-image datasets were captured/curated with 45%–70% field-of-view overlap:
+                </p>
+                <ul style="margin-left: 1.5rem; color: var(--text-secondary);">
+                    <li><strong>Mosaic Set 1 (User's Captures):</strong> UC Berkeley International House hallway interior with laundry room viewing windows and central bulletin board ($1280 \times 960$ RGB, 3 images: Left, Middle, Right).</li>
+                    <li><strong>Mosaic Set 2 (Campus Landmark):</strong> UC Berkeley University Hall intersection and building facade ($1200 \times 900$ RGB, 2 images: Left, Right).</li>
+                    <li><strong>Mosaic Set 3 (Urban Scene):</strong> Grand City restaurant interior with intricate lighting, wooden tables, and signage ($1200 \times 900$ RGB, 3 images: Left, Middle, Right).</li>
+                </ul>
+
+                <div class="image-box">
+                    <img src="results/partA/mosaic1_sources.jpg" alt="Mosaic 1 Source Images">
+                    <div class="caption">Figure A.1: Mosaic Set 1 Source Photos (I-House Hallway: Left, Middle Anchor, Right).</div>
+                </div>
+            </div>
+
+            <!-- A.2 -->
+            <div id="homography" class="card">
+                <h3>A.2: Recovering Homographies</h3>
+                <p>
+                    A 2D homography is a $3 \times 3$ matrix with 8 degrees of freedom relating inhomogeneous coordinates $(x, y) \in \mathbb{R}^2$ to $(x', y') \in \mathbb{R}^2$:
+                </p>
+                $$\begin{bmatrix} x' \\ y' \\ 1 \end{bmatrix} \sim \mathbf{H} \begin{bmatrix} x \\ y \\ 1 \end{bmatrix} = \begin{bmatrix} h_{11} & h_{12} & h_{13} \\ h_{21} & h_{22} & h_{23} \\ h_{31} & h_{32} & 1 \end{bmatrix} \begin{bmatrix} x \\ y \\ 1 \end{bmatrix}$$
+                <p>
+                    Expanding the homogeneous projective equality $x' = \frac{h_{11}x + h_{12}y + h_{13}}{h_{31}x + h_{32}y + 1}$ and $y' = \frac{h_{21}x + h_{22}y + h_{23}}{h_{31}x + h_{32}y + 1}$ and multiplying through by the denominator produces two linear equations per correspondence pair:
+                </p>
+                $$\begin{aligned}
+                x h_{11} + y h_{12} + h_{13} - x x' h_{31} - y x' h_{32} &= x' \\
+                x h_{21} + y h_{22} + h_{23} - x y' h_{31} - y y' h_{32} &= y'
+                \end{aligned}$$
+                <p>
+                    For $n$ correspondences ($n \ge 4$), this forms an overdetermined linear system $\mathbf{A} \mathbf{h} = \mathbf{b}$ where $\mathbf{A}$ has shape $(2n, 8)$:
+                </p>
+                $$\begin{bmatrix}
+                x_1 & y_1 & 1 & 0 & 0 & 0 & -x_1 x'_1 & -y_1 x'_1 \\
+                0 & 0 & 0 & x_1 & y_1 & 1 & -x_1 y'_1 & -y_1 y'_1 \\
+                \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
+                x_n & y_n & 1 & 0 & 0 & 0 & -x_n x'_n & -y_n x'_n \\
+                0 & 0 & 0 & x_n & y_n & 1 & -x_n y'_n & -y_n y'_n
+                \end{bmatrix}
+                \begin{bmatrix} h_{11} \\ h_{12} \\ h_{13} \\ h_{21} \\ h_{22} \\ h_{23} \\ h_{31} \\ h_{32} \end{bmatrix}
+                =
+                \begin{bmatrix} x'_1 \\ y'_1 \\ \vdots \\ x'_n \\ y'_n \end{bmatrix}$$
+                <p>
+                    We solve this system using Least-Squares via Singular Value Decomposition / QR factorization (<code>np.linalg.lstsq(A, b, rcond=None)</code>), appending $h_{33} = 1.0$ to construct the full $3 \times 3$ transformation matrix.
+                </p>
+
+                <div class="grid-2">
+                    <div class="image-box">
+                        <img src="results/partA/manual_correspondences_mosaic1_lm.png" alt="Mosaic 1 Left to Middle Correspondences">
+                        <div class="caption">Figure A.2a: Manual Correspondences on Mosaic 1 (Left &rarr; Middle). 12 landmark points across bulletin board and window edges.</div>
+                    </div>
+                    <div class="image-box">
+                        <img src="results/partA/manual_correspondences_mosaic1_rm.png" alt="Mosaic 1 Right to Middle Correspondences">
+                        <div class="caption">Figure A.2b: Manual Correspondences on Mosaic 1 (Right &rarr; Middle). 12 landmark points across bulletin board and window edges.</div>
+                    </div>
+                </div>
+
+                <p><strong>Example Recovered Homography Matrices:</strong></p>
+                <pre><code># Mosaic 1 (Left -> Middle):
+H_left_to_mid = [
+    [ 1.81577e+00,  8.88495e-02, -9.02686e+02],
+    [ 2.37672e-01,  1.56062e+00, -1.63664e+02],
+    [ 6.24874e-04,  1.17536e-05,  1.00000e+00]
+]
+
+# Mosaic 1 (Right -> Middle):
+H_right_to_mid = [
+    [ 5.20660e-01,  1.22016e-02,  4.76931e+02],
+    [-1.51711e-01,  8.66636e-01,  3.97058e+01],
+    [-3.76829e-04,  4.60782e-05,  1.00000e+00]
+]</code></pre>
+            </div>
+
+            <!-- A.3 -->
+            <div id="rectification" class="card">
+                <h3>A.3: Image Warping & Planar Rectification</h3>
+                <p>
+                    Direct forward warping causes holes and moir&eacute; patterns in the destination image. We therefore implement <strong>inverse warping</strong> from scratch:
+                </p>
+                <ol style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-secondary);">
+                    <li><strong>Bounding Box Computation:</strong> We project the four corners of the source image through $\mathbf{H}$ to compute $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$. The canvas size is $W = x_{\max} - x_{\min} + 1$, $H = y_{\max} - y_{\min} + 1$, with translation offset $\mathbf{T}$.</li>
+                    <li><strong>Inverse Coordinate Mapping:</strong> For each canvas pixel $(x_c, y_c)$, we compute source coordinates $[x_s, y_s, 1]^T \sim (\mathbf{T}\mathbf{H})^{-1} [x_c, y_c, 1]^T$.</li>
+                    <li><strong>Scratch Interpolation:</strong>
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li><strong>Nearest Neighbor:</strong> Round to closest integer $(x_r, y_r) = (\text{round}(x_s), \text{round}(y_s))$.</li>
+                            <li><strong>Bilinear Interpolation:</strong> Subpixel weights $dx = x_s - \lfloor x_s \rfloor, dy = y_s - \lfloor y_s \rfloor$, convex combination of the four neighboring pixels:
+                            $$I(x_s, y_s) = (1-dx)(1-dy)I_{00} + dx(1-dy)I_{01} + (1-dx)dyI_{10} + dx\,dyI_{11}$$</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4 style="color: var(--accent-purple); margin: 1.25rem 0 0.5rem 0;">Rectification Example 1: I-House Events Poster (from right.jpg)</h4>
+                <p>
+                    The black event poster "WEEK OF OCTOBER 19 I-HOUSE EVENTS" is viewed at an acute oblique perspective. We map its four corners to an upright $500 \times 380$ rectangle.
+                </p>
+                <div class="grid-2">
+                    <div class="image-box">
+                        <img src="rectify_poster_annotated_source.jpg" alt="Rectify Poster Source">
+                        <div class="caption">Source photo with 4 annotated corners.</div>
+                    </div>
+                    <div class="image-box">
+                        <img src="rectify_poster_rectified_bilinear.jpg" alt="Rectified Poster">
+                        <div class="caption">Rectified frontal perspective ($500 \times 380$).</div>
+                    </div>
+                </div>
+
+                <div class="image-box">
+                    <img src="rectify_poster_comparison.png" alt="Nearest Neighbor vs Bilinear Comparison">
+                    <div class="caption">Figure A.3a: Nearest Neighbor vs Bilinear Interpolation and Absolute Pixel Error Heatmap.</div>
+                </div>
+
+                <div class="image-box">
+                    <img src="rectify_poster_zoom_comparison.png" alt="Zoomed Interpolation Comparison">
+                    <div class="caption">Figure A.3b: Detailed Zoom: Nearest Neighbor exhibits severe pixelation and staircasing aliasing; Bilinear achieves smooth subpixel gradation.</div>
+                </div>
+
+                <h4 style="color: var(--accent-purple); margin: 1.5rem 0 0.5rem 0;">Rectification Example 2: Laundry Room Window (from left.jpg)</h4>
+                <p>
+                    The dark wood frame and interior glass window looking into the laundry room is rectified from an angle into a vertical $300 \times 750$ frontal plane.
+                </p>
+                <div class="grid-2">
+                    <div class="image-box">
+                        <img src="rectify_window_annotated_source.jpg" alt="Rectify Window Source">
+                        <div class="caption">Window frame with 4 annotated corners.</div>
+                    </div>
+                    <div class="image-box">
+                        <img src="rectify_window_rectified_bilinear.jpg" alt="Rectified Window">
+                        <div class="caption">Rectified window showing straightened pipes and machines.</div>
+                    </div>
+                </div>
+                <div class="image-box">
+                    <img src="rectify_window_comparison.png" alt="Window NN vs Bilinear Comparison">
+                    <div class="caption">Figure A.3c: Window Rectification: NN vs Bilinear and difference heatmap.</div>
+                </div>
+                <div class="image-box">
+                    <img src="rectify_window_zoom_comparison.png" alt="Window Zoom Comparison">
+                    <div class="caption">Figure A.3d: Zoomed detail on interior moulding: jagged steps in NN vs smooth line in Bilinear.</div>
+                </div>
+
+                <h4 style="color: var(--accent-purple); margin: 1.5rem 0 0.5rem 0;">Rectification Example 3: MacBook Screen Square (Ground Truth Square)</h4>
+                <div class="grid-2">
+                    <div class="image-box">
+                        <img src="rectify_macbook_annotated_source.jpg" alt="Macbook Screen Square Source">
+                        <div class="caption">Angled MacBook screen displaying a digital geometric square.</div>
+                    </div>
+                    <div class="image-box">
+                        <img src="rectify_macbook_rectified_bilinear.jpg" alt="Rectified Macbook Square">
+                        <div class="caption">Rectified to perfect $400 \times 400$ square.</div>
+                    </div>
+                </div>
+
+                <h4 style="color: var(--accent-green); margin-top: 1.5rem;">Interpolation Tradeoff Analysis</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Poster Runtime</th>
+                            <th>Window Runtime</th>
+                            <th>MacBook Runtime</th>
+                            <th>Visual Quality</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Nearest Neighbor</strong></td>
+                            <td>27.4 ms</td>
+                            <td>30.5 ms</td>
+                            <td>22.2 ms</td>
+                            <td>Blocky, high-frequency aliasing, visible jagged diagonals on text.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Bilinear Interpolation</strong></td>
+                            <td>82.0 ms</td>
+                            <td>104.0 ms</td>
+                            <td>67.9 ms</td>
+                            <td>Smooth, anti-aliased transitions, legible subpixel fonts. ~3&times; computation time.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- A.4 -->
+            <div id="mosaics" class="card">
+                <h3>A.4: Blending Images into Mosaics</h3>
+                <p>
+                    Simple image stamping or hard cut seams cause visible exposure boundaries and harsh geometric discontinuities. We composite warped images using <strong>Euclidean Distance-Transform Weighted Feathering</strong>:
+                </p>
+                <ol style="margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-secondary);">
+                    <li>For each warped image $I_k$ with binary valid mask $M_k \in \{0, 1\}$, we compute its distance transform $D_k = \text{distance\_transform\_edt}(M_k)$.</li>
+                    <li>The weight $D_k(x, y)$ equals 0 at the image boundary and scales smoothly to maximum depth at the interior center.</li>
+                    <li>At each canvas pixel, weights are normalized: $W_k(x, y) = \frac{D_k(x, y)}{\sum_j D_j(x, y) + \epsilon}$.</li>
+                    <li>The final mosaic is computed as $I_{\text{mosaic}}(x, y) = \sum_k W_k(x, y) \cdot I_k(x, y)$.</li>
+                </ol>
+
+                <h4 style="color: var(--accent-blue); margin-top: 1.25rem;">Mosaic 1: I-House Hallway (Manual Homographies)</h4>
+                <div class="image-box">
+                    <img src="results/partA/mosaic1_sources.jpg" alt="Mosaic 1 Source Photos">
+                    <div class="caption">Figure A.4a-1: Mosaic 1 Source Photos (3 overlapping views of I-House Hallway).</div>
+                </div>
+                <div class="image-box">
+                    <img src="results/partA/mosaic1_manual.jpg" alt="Mosaic 1 Manual">
+                    <div class="caption">Figure A.4a-2: Mosaic 1 (I-House) Manual Stitching. Seamless feathering across 3 shots.</div>
+                </div>
+
+                <h4 style="color: var(--accent-blue); margin-top: 1.25rem;">Mosaic 2: University Hall (Manual Homographies)</h4>
+                <div class="image-box">
+                    <img src="results/partA/mosaic2_sources.jpg" alt="Mosaic 2 Source Photos">
+                    <div class="caption">Figure A.4b-1: Mosaic 2 Source Photos (2 overlapping views of University Hall).</div>
+                </div>
+                <div class="image-box">
+                    <img src="results/partA/mosaic2_manual.jpg" alt="Mosaic 2 Manual">
+                    <div class="caption">Figure A.4b-2: Mosaic 2 (University Hall) Manual Stitching. Alignment across street and building facade.</div>
+                </div>
+
+                <h4 style="color: var(--accent-blue); margin-top: 1.25rem;">Mosaic 3: Grand City Restaurant (Manual Homographies)</h4>
+                <div class="image-box">
+                    <img src="results/partA/mosaic3_sources.jpg" alt="Mosaic 3 Source Photos">
+                    <div class="caption">Figure A.4c-1: Mosaic 3 Source Photos (3 overlapping views of Restaurant Interior).</div>
+                </div>
+                <div class="image-box">
+                    <img src="results/partA/mosaic3_manual.jpg" alt="Mosaic 3 Manual">
+                    <div class="caption">Figure A.4c-2: Mosaic 3 (Restaurant Scene) Manual Stitching. Wide field-of-view indoor stitch.</div>
+                </div>
+            </div>
+
+            <!-- A.5 -->
+            <div id="bellsA" class="card">
+                <h3>A.5: Bells & Whistles &bull; Cylindrical Projection Mapping</h3>
+                <div class="callout purple">
+                    <strong>CS280A Mandatory Extension:</strong> When panoramas span large horizontal fields of view (&gt; 90&deg;), planar homographies suffer from severe edge stretching because projective rays diverge tangent to the image plane. Projecting onto a cylindrical surface removes this perspective elongation!
+                </div>
+                <p>
+                    For a camera with focal length $f$ and principal center $(x_c, y_c) = (W/2, H/2)$, the mapping between planar $(x, y)$ and cylindrical coordinates $(\theta, h)$ is:
+                </p>
+                $$\theta = \arctan\left(\frac{x - x_c}{f}\right), \quad h = \frac{y - y_c}{\sqrt{(x - x_c)^2 + f^2}}$$
+                <p>
+                    To prevent holes, we implement <strong>inverse cylindrical sampling</strong>:
+                </p>
+                $$\theta = \frac{x_{\text{cyl}} - x_c}{f}, \quad x_{\text{src}} = f \tan\theta + x_c, \quad y_{\text{src}} = \frac{y_{\text{cyl}} - y_c}{\cos\theta} + y_c$$
+                <p>
+                    Once warped to cylindrical coordinates, pure camera rotation around the vertical axis is transformed into pure horizontal <strong>translation</strong>! We register adjacent cylindrical images using 1-point RANSAC translational shifts $(\Delta x, \Delta y)$ and blend them with distance-transform feathering.
+                </p>
+
+                <div class="image-box">
+                    <img src="cylindrical_mosaic_ihouse.jpg" alt="Cylindrical Panorama">
+                    <div class="caption">Figure A.5: Cylindrical Projection Panorama of I-House Hallway ($f = 1100$ px). Notice how straight vertical door frames and window edges are maintained without the wide-angle edge flare present in planar mosaics.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary & Reflections -->
+        <section id="reflections">
+            <h2><span class="section-tag">Summary</span> Key Takeaways & Discussion</h2>
+            <div class="card">
+                <ul style="margin-left: 1.5rem; color: var(--text-secondary);">
+                    <li style="margin-bottom: 0.75rem;">
+                        <strong>Inverse Warping is Essential:</strong> Forward warping creates sparse "pinhole" artifacts in expanding regions. Inverse warping with bilinear interpolation guarantees a smooth, fully populated, anti-aliased reconstruction.
+                    </li>
+                    <li style="margin-bottom: 0.75rem;">
+                        <strong>ANMS Solves Feature Clustering:</strong> Raw Harris corners heavily concentrate in high-contrast textures (e.g. flyer barcodes or building windows). ANMS suppression radii distribute the feature budget evenly across the entire field of view, providing stable homography geometry.
+                    </li>
+                    <li style="margin-bottom: 0.75rem;">
+                        <strong>Lowe's Ratio Test + 4-Point RANSAC:</strong> Lowe's ratio test eliminates 90% of false matches in repetitive textures, while 4-point RANSAC cleanly rejects any remaining parallax or moving outliers, achieving &gt; 80% inlier ratios across all scenes.
+                    </li>
+                    <li style="margin-bottom: 0.75rem;">
+                        <strong>Distance Transform Blending Eliminates Seams:</strong> Euclidean distance-transform weights provide continuous falloff to zero at boundaries, eliminating exposure seams without blurring sharp high-frequency interior details.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 CS180 / CS280A Computer Vision & Computational Photography &bull; University of California, Berkeley</p>
+        </footer>
+    </div>
+
+</body>
+</html>
